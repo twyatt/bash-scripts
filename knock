@@ -1,0 +1,81 @@
+#!/bin/bash
+
+VERBOSE=true
+CONFIG="/etc/knock.conf"
+E_OPTERR=65
+
+
+function load_configuration {
+	if [ -r ${CONFIG} ]; then
+		i "Loading configuration from ${CONFIG} ..."
+		source ${CONFIG}
+	fi
+}
+
+function i {
+	if $VERBOSE; then
+		${ECHO} "$1"
+	fi
+}
+
+function parse_options {
+	if [ $# -lt 1 ]; then
+		display_usage
+		exit $E_OPTERR
+	fi
+
+	HOST=$1
+	PORT=$2
+
+	check_options
+}
+
+function check_options {
+	if [ -z "${HOST}" ]; then
+		missing_option "HOST"
+	fi
+
+	if [ -z "${PORT}" ]; then
+		if [ -z "${DEFAULT_PORT}" ]; then
+			missing_option "PORT"
+		else
+			PORT=${DEFAULT_PORT}
+		fi
+	fi
+}
+
+function missing_option {
+	e "Missing $1 argument."
+	display_usage
+	exit $E_OPTERR
+}
+
+function display_usage {
+	echo "Usage: $0 HOST [PORT]"
+}
+
+function set_default_options {
+	WAIT=${WAIT:-5} # time to wait for knock before continuing execution
+}
+
+function setup_commands {
+	TELNET=${TELNET:-`which telnet`}
+	ECHO=${ECHO:-`which echo`}
+	SLEEP=${SLEEP:-`which sleep`}
+	KILL=${KILL:-`which kill`}
+}
+
+function knock {
+	i "Knocking ${HOST} on port ${PORT} ..."
+	${TELNET} -c ${HOST} ${PORT} >/dev/null 2>&1 &
+	pid=$!
+	${SLEEP} ${WAIT}
+	${KILL} ${pid} >/dev/null 2>&1
+}
+
+
+setup_commands
+load_configuration
+parse_options $*
+set_default_options
+knock
